@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>墨阅小说</title>
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+/* ========== 基础与变量 ========== */
+:root{
+  --bg:#faf7f2;
+  --bg-card:#ffffff;
+  --bg-sub:#f2ede5;
+  --ink:#2b2b2b;
+  --ink-2:#6b6b6b;
+  --ink-3:#9a9a9a;
+  --line:#e8e2d6;
+  --accent:#e63946;
+  --accent-soft:#fde8ea;
+  --gold:#c9a961;
+  --radius:14px;
+  --serif:'Noto Serif SC', serif;
+  --sans:'Noto Sans SC', -apple-system, sans-serif;
+  --shadow:0 4px 18px rgba(60,40,20,.08);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--ink);
+  line-height:1.6;
+  overscroll-behavior-y:none;
+}
+button{font-family:inherit;border:none;background:none;cursor:pointer;color:inherit}
+input,textarea{font-family:inherit;outline:none;border:none}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+
+/* ========== 顶部导航 ========== */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:56px;z-index:100;
+  background:rgba(250,247,242,.92);backdrop-filter:blur(12px);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 18px;border-bottom:1px solid var(--line);
+}
+.topbar .logo{font-family:var(--serif);font-weight:900;font-size:22px;letter-spacing:1px;color:var(--ink)}
+.topbar .logo em{color:var(--accent);font-style:normal}
+.topbar .actions{display:flex;gap:8px;align-items:center}
+.btn-ghost{
+  padding:7px 16px;border-radius:20px;font-size:14px;font-weight:500;
+  background:var(--bg-sub);color:var(--ink);transition:.2s;
+}
+.btn-ghost:active{transform:scale(.96)}
+.btn-primary{
+  padding:7px 18px;border-radius:20px;font-size:14px;font-weight:500;
+  background:var(--accent);color:#fff;transition:.2s;
+}
+.btn-primary:active{transform:scale(.96)}
+.avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--gold));
+  color:#fff;font-size:14px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* ========== 主体容器 ========== */
+#app{padding-top:56px;padding-bottom:70px;min-height:100vh}
+.view{display:none;animation:fadeIn .25s ease}
+.view.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ========== 底部导航 ========== */
+.tabbar{
+  position:fixed;bottom:0;left:0;right:0;height:64px;z-index:100;
+  background:#fff;border-top:1px solid var(--line);
+  display:flex;
+}
+.tabbar a{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;font-size:11px;color:var(--ink-3);transition:.2s;
+}
+.tabbar a.active{color:var(--accent)}
+.tabbar a svg{width:22px;height:22px}
+
+/* ========== 首页 ========== */
+.hero{
+  margin:16px;padding:22px 20px;border-radius:var(--radius);
+  background:linear-gradient(135deg,#2b2b2b 0%,#4a3728 100%);
+  color:#fff;position:relative;overflow:hidden;
+}
+.hero::after{
+  content:"";position:absolute;right:-30px;top:-30px;width:160px;height:160px;
+  background:radial-gradient(circle,rgba(201,169,97,.35),transparent 70%);
+}
+.hero h1{font-family:var(--serif);font-size:24px;font-weight:700;margin-bottom:6px}
+.hero p{font-size:13px;opacity:.75}
+.hero .tag{
+  display:inline-block;margin-top:12px;padding:4px 12px;border-radius:12px;
+  background:rgba(255,255,255,.15);font-size:12px;
+}
+.section-head{
+  display:flex;align-items:baseline;justify-content:space-between;
+  padding:20px 18px 12px;
+}
+.section-head h2{font-family:var(--serif);font-size:19px;font-weight:700}
+.section-head .more{font-size:13px;color:var(--ink-3)}
+
+.book-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+  padding:0 16px;
+}
+.book-card{cursor:pointer}
+.book-cover{
+  aspect-ratio:3/4;border-radius:8px;overflow:hidden;position:relative;
+  box-shadow:var(--shadow);margin-bottom:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-weight:700;color:#fff;
+  text-align:center;padding:10px;font-size:15px;line-height:1.4;
+  word-break:break-all;
+}
+.book-cover .v{position:absolute;left:0;top:0;bottom:0;width:4px;background:rgba(0,0,0,.15)}
+.book-card h3{
+  font-size:13px;font-weight:500;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;
+}
+.book-card .author{font-size:11px;color:var(--ink-3);margin-top:2px}
+
+/* 横向滚动推荐 */
+.rec-row{
+  display:flex;gap:14px;overflow-x:auto;padding:0 16px 8px;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+}
+.rec-row::-webkit-scrollbar{display:none}
+.rec-row .book-card{min-width:110px;scroll-snap-align:start}
+
+/* ========== 详情页 ========== */
+.detail-head{
+  display:flex;gap:16px;padding:20px 18px;
+  background:linear-gradient(180deg,var(--bg-sub),var(--bg));
+}
+.detail-head .book-cover{width:110px;min-width:110px;aspect-ratio:3/4;margin:0;font-size:14px}
+.detail-info h1{font-family:var(--serif);font-size:21px;font-weight:700;margin-bottom:6px}
+.detail-info .meta{font-size:12px;color:var(--ink-3);margin-bottom:10px}
+.detail-info .desc{
+  font-size:13px;color:var(--ink-2);line-height:1.7;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+}
+.detail-tags{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.detail-tags span{
+  font-size:11px;padding:3px 10px;border-radius:10px;
+  background:var(--accent-soft);color:var(--accent);
+}
+.detail-actions{
+  display:flex;gap:10px;padding:16px 18px;
+  position:sticky;top:56px;background:var(--bg);z-index:5;
+}
+.btn-read{
+  flex:1;padding:13px;border-radius:24px;font-size:15px;font-weight:600;
+  background:var(--accent);color:#fff;
+}
+.btn-read:active{transform:scale(.98)}
+.btn-shelf{
+  width:52px;border-radius:24px;background:var(--bg-sub);
+  display:flex;align-items:center;justify-content:center;
+}
+.btn-shelf svg{width:22px;height:22px}
+.btn-shelf.on{background:var(--accent-soft);color:var(--accent)}
+
+.chapter-list{padding:8px 18px 30px}
+.chapter-list h3{
+  font-family:var(--serif);font-size:16px;font-weight:700;
+  padding:16px 0 10px;
+}
+.ch-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 4px;border-bottom:1px solid var(--line);
+  font-size:14px;cursor:pointer;
+}
+.ch-item .read-tag{font-size:11px;color:var(--accent)}
+
+/* ========== 阅读页 ========== */
+#view-read{
+  padding-top:0;padding-bottom:0;min-height:100vh;
+  background:var(--read-bg,#f5ecd9);
+}
+.read-wrap{
+  max-width:680px;margin:0 auto;padding:24px 22px 100px;
+  font-family:var(--serif);color:var(--read-ink,#3a3226);
+}
+.read-title{
+  font-size:22px;font-weight:700;text-align:center;
+  margin:20px 0 6px;
+}
+.read-meta{
+  text-align:center;font-size:12px;opacity:.5;margin-bottom:30px;
+  font-family:var(--sans);
+}
+.read-content{
+  font-size:var(--read-size,18px);line-height:2;
+  text-align:justify;text-indent:2em;
+}
+.read-content p{margin-bottom:1em}
+.read-nav{
+  display:flex;gap:12px;margin-top:40px;
+}
+.read-nav button{
+  flex:1;padding:12px;border-radius:10px;font-size:14px;
+  background:rgba(0,0,0,.06);
+}
+.read-nav button:disabled{opacity:.3}
+
+/* 阅读页工具栏 */
+.read-toolbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:200;
+  background:#fff;border-top:1px solid var(--line);
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  display:flex;align-items:center;justify-content:space-around;
+  transform:translateY(100%);transition:.25s;
+}
+.read-toolbar.show{transform:none}
+.read-toolbar button{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-size:11px;color:var(--ink-2);
+}
+.read-toolbar button svg{width:22px;height:22px}
+.read-toolbar .bg-dots{display:flex;gap:8px}
+.read-toolbar .bg-dot{
+  width:26px;height:26px;border-radius:50%;border:2px solid transparent;
+}
+.read-toolbar .bg-dot.active{border-color:var(--accent)}
+
+/* ========== 书架页 ========== */
+.shelf-empty{
+  text-align:center;padding:80px 30px;color:var(--ink-3);
+}
+.shelf-empty svg{width:80px;height:80px;opacity:.3;margin-bottom:16px}
+.shelf-empty p{font-size:14px}
+
+/* ========== 登录弹窗 ========== */
+.modal-mask{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;
+  display:none;align-items:flex-end;justify-content:center;
+}
+.modal-mask.show{display:flex}
+.modal{
+  background:#fff;width:100%;max-width:480px;
+  border-radius:20px 20px 0 0;padding:28px 24px calc(28px + env(safe-area-inset-bottom));
+  animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+.modal h2{font-family:var(--serif);font-size:22px;margin-bottom:6px}
+.modal .sub{font-size:13px;color:var(--ink-3);margin-bottom:22px}
+.field{
+  width:100%;padding:13px 14px;border-radius:10px;
+  background:var(--bg-sub);font-size:15px;margin-bottom:12px;
+}
+.modal .btn-primary{width:100%;padding:14px;border-radius:10px;font-size:15px;margin-top:6px}
+.modal .switch{
+  text-align:center;font-size:13px;color:var(--ink-3);margin-top:14px;
+}
+.modal .switch b{color:var(--accent);cursor:pointer}
+
+/* ========== Toast ========== */
+#toast{
+  position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);
+  background:rgba(40,30,20,.9);color:#fff;padding:10px 22px;
+  border-radius:20px;font-size:14px;z-index:500;
+  opacity:0;pointer-events:none;transition:.25s;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ========== 章节抽屉 ========== */
+.drawer-mask{
+  position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:250;
+  display:none;
+}
+.drawer-mask.show{display:block}
+.drawer{
+  position:fixed;left:0;right:0;bottom:0;max-height:70vh;z-index:260;
+  background:#fff;border-radius:18px 18px 0 0;
+  display:none;flex-direction:column;
+  transform:translateY(100%);transition:.25s;
+}
+.drawer.show{display:flex;transform:none}
+.drawer-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 20px;border-bottom:1px solid var(--line);
+}
+.drawer-head h3{font-family:var(--serif);font-size:17px}
+.drawer-list{overflow-y:auto;padding:8px 20px 30px}
+.drawer-list .ch-item{padding:13px 0}
+.drawer-list .ch-item.current{color:var(--accent);font-weight:600}
+
+/* ========== 加载与错误 ========== */
+.loading{text-align:center;padding:50px;color:var(--ink-3);font-size:14px}
+.error-box{
+  margin:20px;padding:20px;border-radius:12px;
+  background:var(--accent-soft);color:var(--accent);font-size:13px;line-height:1.7;
+}
+.error-box b{display:block;margin-bottom:6px;font-size:15px}
+
+/* ========== 桌面适配 ========== */
+@media(min-width:768px){
+  .book-grid{grid-template-columns:repeat(5,1fr)}
+  #app{max-width:1000px;margin:0 auto}
+  .topbar{left:50%;transform:translateX(-50%);max-width:1000px}
+  .tabbar{left:50%;transform:translateX(-50%);max-width:1000px}
+}
+</style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<header class="topbar">
+  <div class="logo">墨<em>阅</em></div>
+  <div class="actions" id="top-actions"></div>
+</header>
+
+<!-- 主内容 -->
+<main id="app">
+
+  <!-- 首页 -->
+  <section class="view" data-route="home">
+    <div class="hero">
+      <h1>今夜读哪本书？</h1>
+      <p>海量正版小说，沉浸式阅读体验</p>
+      <span class="tag">每日精选 · 书友推荐</span>
+    </div>
+    <div class="section-head"><h2>精品推荐</h2><span class="more">查看全部</span></div>
+    <div class="rec-row" id="rec-row"></div>
+    <div class="section-head"><h2>书库新书</h2></div>
+    <div class="book-grid" id="book-grid"></div>
+    <div class="loading" id="home-loading">加载中…</div>
+  </section>
+
+  <!-- 详情页 -->
+  <section class="view" data-route="detail">
+    <div id="detail-body"></div>
+  </section>
+
+  <!-- 阅读页 -->
+  <section class="view" data-route="read">
+    <div class="read-wrap" id="read-wrap"></div>
+  </section>
+
+  <!-- 书架 -->
+  <section class="view" data-route="shelf">
+    <div class="section-head"><h2>我的书架</h2></div>
+    <div id="shelf-body"></div>
+  </section>
+
+</main>
+
+<!-- 底部导航 -->
+<nav class="tabbar">
+  <a href="#home" data-tab="home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+    书城
+  </a>
+  <a href="#shelf" data-tab="shelf">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h13v17H4z"/><path d="M8 4v17"/></svg>
+    书架
+  </a>
+</nav>
+
+<!-- 阅读工具栏 -->
+<div class="read-toolbar" id="read-toolbar">
+  <button id="tb-font-dec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="6" y="17" font-size="14" stroke="none" fill="currentColor">A</text><text x="13" y="20" font-size="10" stroke="none" fill="currentColor">A</text></svg>字号-</button>
+  <button id="tb-font-inc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="5" y="20" font-size="10" stroke="none" fill="currentColor">A</text><text x="11" y="16" font-size="16" stroke="none" fill="currentColor">A</text></svg>字号+</button>
+  <div class="bg-dots">
+    <div class="bg-dot active" data-bg="#f5ecd9" style="background:#f5ecd9"></div>
+    <div class="bg-dot" data-bg="#ffffff" style="background:#ffffff"></div>
+    <div class="bg-dot" data-bg="#2c2c2c" style="background:#2c2c2c"></div>
+  </div>
+  <button id="tb-chapters"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>目录</button>
+</div>
+
+<!-- 章节抽屉 -->
+<div class="drawer-mask" id="drawer-mask"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h3 id="drawer-title">章节列表</h3>
+    <button onclick="closeDrawer()" style="font-size:20px;color:#999">×</button>
+  </div>
+  <div class="drawer-list" id="drawer-list"></div>
+</div>
+
+<!-- 登录弹窗 -->
+<div class="modal-mask" id="login-mask">
+  <div class="modal">
+    <h2 id="login-title">欢迎回来</h2>
+    <p class="sub" id="login-sub">登录后同步你的书架与阅读进度</p>
+    <input class="field" id="login-email" type="email" placeholder="邮箱">
+    <input class="field" id="login-pass" type="password" placeholder="密码（至少6位）">
+    <button class="btn-primary" id="login-btn">登 录</button>
+    <p class="switch" id="login-switch">还没有账号？<b onclick="toggleMode()">注册新账号</b></p>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+ * ①  配置区 —— 把你的 Publishable key 粘贴到下面引号里
+ * ============================================================ */
+const SUPABASE_URL = "https://fzppzbdfdkzlhwtktgzi.supabase.co";
+const SUPABASE_KEY = "sb_publishable_oFHHrgFrEIlmyGAJsC1fag_D83xhkqH";  // ← sb_publishable_ 开头那串
+
+/* ============================================================
+ * ②  初始化
+ * ============================================================ */
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const state = {
+  user: null,
+  books: [],
+  currentBook: null,
+  currentChapters: [],
+  currentChapter: null,
+  shelf: new Set(),
+  readSize: parseInt(localStorage.getItem('readSize') || '18'),
+  readBg: localStorage.getItem('readBg') || '#f5ecd9',
+};
+
+/* 封面配色池（无封面图时用渐变+书名做封面） */
+const coverGradients = [
+  ['#c94f4f','#8b2f2f'],['#4a6fa5','#2d4a75'],['#5a7d5a','#355235'],
+  ['#8b6f47','#5c4526'],['#6b4e7e','#432e52'],['#b8763e','#7a4a20'],
+  ['#3e7d7a','#255250'],['#9a4a6b','#632a44'],
+];
+function coverStyle(i){
+  const c = coverGradients[i % coverGradients.length];
+  return `background:linear-gradient(160deg,${c[0]},${c[1]})`;
+}
+
+/* ============================================================
+ * ③  工具函数
+ * ============================================================ */
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(()=>t.classList.remove('show'),1800);
+}
+function esc(s){
+  return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function coverHtml(book, idx){
+  const bg = coverStyle(idx);
+  if(book.cover){
+    return `<div class="book-cover" style="${bg}"><img src="${esc(book.cover)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"><span class="v"></span><span style="position:relative;z-index:1">${esc(book.title)}</span></div>`;
+  }
+  return `<div class="book-cover" style="${bg}"><span class="v"></span>${esc(book.title)}</div>`;
+}
+
+/* ============================================================
+ * ④  路由
+ * ============================================================ */
+function parseHash(){
+  const h = location.hash.slice(1) || 'home';
+  const [path, query] = h.split('?');
+  const params = {};
+  if(query) query.split('&').forEach(kv=>{
+    const [k,v] = kv.split('=');
+    params[k] = decodeURIComponent(v||'');
+  });
+  return {path, params};
+}
+function route(){
+  const {path, params} = parseHash();
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const view = document.querySelector(`.view[data-route="${path}"]`) || document.querySelector('.view[data-route="home"]');
+  view.classList.add('active');
+  document.querySelectorAll('.tabbar a').forEach(a=>{
+    a.classList.toggle('active', a.dataset.tab === (path==='detail'||path==='read' ? (params.from||'home') : path));
+  });
+  if(path==='home') loadHome();
+  else if(path==='detail') loadDetail(params.id, params.from);
+  else if(path==='read') loadRead(params.book, params.chapter, params.from);
+  else if(path==='shelf') loadShelf();
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange', route);
+
+/* ============================================================
+ * ⑤  顶部栏 & 用户
+ * ============================================================ */
+function renderTop(){
+  const el = document.getElementById('top-actions');
+  if(state.user){
+    const name = (state.user.email||'U').slice(0,1).toUpperCase();
+    el.innerHTML = `<div class="avatar" title="${esc(state.user.email)}">${name}</div>
+      <button class="btn-ghost" onclick="logout()">退出</button>`;
+  }else{
+    el.innerHTML = `<button class="btn-primary" onclick="openLogin()">登录</button>`;
+  }
+}
+async function logout(){
+  await supabase.auth.signOut();
+  state.user = null; state.shelf = new Set();
+  renderTop(); toast('已退出登录');
+  location.hash = '#home';
+}
+
+/* ---- 登录弹窗 ---- */
+let loginMode = 'login';
+function openLogin(){
+  document.getElementById('login-mask').classList.add('show');
+}
+function closeLogin(){
+  document.getElementById('login-mask').classList.remove('show');
+}
+function toggleMode(){
+  loginMode = loginMode==='login' ? 'register' : 'login';
+  document.getElementById('login-title').textContent = loginMode==='login' ? '欢迎回来' : '创建账号';
+  document.getElementById('login-sub').textContent = loginMode==='login' ? '登录后同步你的书架与阅读进度' : '注册后即可收藏小说、同步进度';
+  document.getElementById('login-btn').textContent = loginMode==='login' ? '登 录' : '注 册';
+  document.getElementById('login-switch').innerHTML = loginMode==='login'
+    ? '还没有账号？<b onclick="toggleMode()">注册新账号</b>'
+    : '已有账号？<b onclick="toggleMode()">去登录</b>';
+}
+document.getElementById('login-btn').addEventListener('click', async ()=>{
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  if(!email || !pass){ toast('请填写邮箱和密码'); return; }
+  let res;
+  if(loginMode==='login'){
+    res = await supabase.auth.signInWithPassword({email,password:pass});
+  }else{
+    res = await supabase.auth.signUp({email,password:pass});
+  }
+  if(res.error){ toast(res.error.message); return; }
+  state.user = res.data.user;
+  renderTop(); closeLogin();
+  toast(loginMode==='login' ? '登录成功' : '注册成功');
+  loadShelf();
+});
+document.getElementById('login-mask').addEventListener('click', e=>{
+  if(e.target.id==='login-mask') closeLogin();
+});
+
+/* ============================================================
+ * ⑥  首页
+ * ============================================================ */
+async function loadHome(){
+  document.getElementById('home-loading').style.display = 'block';
+  const {data, error} = await supabase
+    .from('books').select('*').order('created_at',{ascending:false});
+  document.getElementById('home-loading').style.display = 'none';
+  if(error){
+    document.getElementById('book-grid').innerHTML = errorBox(error);
+    return;
+  }
+  state.books = data || [];
+  const grid = document.getElementById('book-grid');
+  const rec = document.getElementById('rec-row');
+  if(!state.books.length){
+    grid.innerHTML = `<div class="error-box" style="grid-column:1/-1">
+      <b>书库还没有小说</b>
+      请先到 Supabase 控制台的 Table Editor，在 books 表里插入几本小说（title / author / description），刷新即可看到。
+    </div>`;
+    rec.innerHTML = '';
+    return;
+  }
+  grid.innerHTML = state.books.map((b,i)=>`
+    <div class="book-card" onclick="location.hash='#detail?id=${b.id}&from=home'">
+      ${coverHtml(b,i)}
+      <h3>${esc(b.title)}</h3>
+      <div class="author">${esc(b.author)}</div>
+    </div>`).join('');
+  rec.innerHTML = state.books.slice(0,8).map((b,i)=>`
+    <div class="book-card" onclick="location.hash='#detail?id=${b.id}&from=home'">
+      ${coverHtml(b,i+2)}
+      <h3>${esc(b.title)}</h3>
+    </div>`).join('');
+}
+
+function errorBox(err){
+  return `<div class="error-box"><b>加载失败</b>${esc(err.message||err)}<br><br>
+    检查清单：<br>1. 已在 SQL Editor 执行建表 SQL<br>
+    2. 已把 Publishable key 填入顶部配置区<br>
+    3. 已开启 RLS 并允许所有人 SELECT</div>`;
+}
+
+/* ============================================================
+ * ⑦  详情页
+ * ============================================================ */
+async function loadDetail(bookId, from){
+  const body = document.getElementById('detail-body');
+  body.innerHTML = '<div class="loading">加载中…</div>';
+  const {data: book} = await supabase.from('books').select('*').eq('id',bookId).single();
+  if(!book){ body.innerHTML = '<div class="loading">小说不存在</div>'; return; }
+  state.currentBook = book;
+
+  const {data: chapters} = await supabase.from('chapters')
+    .select('id,chapter_title,sort').eq('book_id',bookId)
+    .order('sort',{ascending:true});
+  state.currentChapters = chapters || [];
+
+  const inShelf = state.shelf.has(bookId);
+
+  body.innerHTML = `
+    <div class="detail-head">
+      ${coverHtml(book, parseInt(bookId)%8)}
+      <div class="detail-info">
+        <h1>${esc(book.title)}</h1>
+        <div class="meta">${esc(book.author)} · ${esc(book.status||'连载中')}</div>
+        <div class="desc">${esc(book.description||'暂无简介')}</div>
+        <div class="detail-tags">
+          <span>${esc(book.category||'小说')}</span>
+          <span>共 ${state.currentChapters.length} 章</span>
+        </div>
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button class="btn-read" onclick="startRead('${bookId}')">${state.currentChapters.length ? '开始阅读' : '暂无章节'}</button>
+      <button class="btn-shelf ${inShelf?'on':''}" onclick="toggleShelf('${bookId}')" title="加入书架">
+        <svg viewBox="0 0 24 24" fill="${inShelf?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M4 4h13v17H4z"/><path d="M8 4v17"/></svg>
+      </button>
+    </div>
+    <div class="chapter-list">
+      <h3>目录（${state.currentChapters.length}）</h3>
+      ${state.currentChapters.map((c,i)=>`
+        <div class="ch-item" onclick="location.hash='#read?book=${bookId}&chapter=${c.id}&from=detail'">
+          <span>第${i+1}章 ${esc(c.chapter_title)}</span>
+        </div>`).join('') || '<div class="loading">暂无章节</div>'}
+    </div>`;
+}
+
+async function startRead(bookId){
+  if(!state.currentChapters.length){ toast('本书暂无章节'); return; }
+  location.hash = `#read?book=${bookId}&chapter=${state.currentChapters[0].id}&from=detail`;
+}
+
+async function toggleShelf(bookId){
+  if(!state.user){ openLogin(); return; }
+  if(state.shelf.has(bookId)){
+    await supabase.from('bookshelf').delete().eq('user_id',state.user.id).eq('book_id',bookId);
+    state.shelf.delete(bookId); toast('已移出书架');
+  }else{
+    await supabase.from('bookshelf').insert([{user_id:state.user.id, book_id:bookId}]);
+    state.shelf.add(bookId); toast('已加入书架');
+  }
+  loadDetail(bookId, 'detail');
+}
+
+/* ============================================================
+ * ⑧  阅读页
+ * ============================================================ */
+let readCtx = {bookId:null, chapterId:null, from:'detail'};
+
+async function loadRead(bookId, chapterId, from){
+  readCtx = {bookId, chapterId, from};
+  document.getElementById('read-toolbar').classList.remove('show');
+  const wrap = document.getElementById('read-wrap');
+  wrap.innerHTML = '<div class="loading">加载章节…</div>';
+
+  const {data: ch, error} = await supabase.from('chapters')
+    .select('*').eq('id',chapterId).single();
+  if(error || !ch){
+    wrap.innerHTML = '<div class="loading">章节加载失败</div>'; return;
+  }
+  state.currentChapter = ch;
+
+  // 章节上下篇
+  const idx = state.currentChapters.findIndex(c=>c.id===parseInt(chapterId));
+  const prev = idx>0 ? state.currentChapters[idx-1] : null;
+  const next = idx<state.currentChapters.length-1 ? state.currentChapters[idx+1] : null;
+
+  applyReadStyle();
+  const paragraphs = (ch.content||'').split(/\n+/).filter(p=>p.trim());
+  wrap.innerHTML = `
+    <div class="read-title">${esc(ch.chapter_title)}</div>
+    <div class="read-meta">${esc(state.currentBook?.title||'')}</div>
+    <div class="read-content">${paragraphs.map(p=>`<p>${esc(p)}</p>`).join('')}</div>
+    <div class="read-nav">
+      <button ${prev?'':'disabled'} onclick="location.hash='#read?book=${bookId}&chapter=${prev?prev.id:chapterId}&from=read'">上一章</button>
+      <button ${next?'':'disabled'} onclick="location.hash='#read?book=${bookId}&chapter=${next?next.id:chapterId}&from=read'">下一章</button>
+    </div>`;
+
+  // 保存阅读进度
+  if(state.user){
+    await supabase.from('read_record').upsert([{
+      user_id:state.user.id, book_id:bookId, chapter_id:chapterId
+    }]);
+  }
+  window.scrollTo(0,0);
+}
+
+function applyReadStyle(){
+  const root = document.documentElement;
+  const dark = state.readBg === '#2c2c2c';
+  root.style.setProperty('--read-bg', state.readBg);
+  root.style.setProperty('--read-ink', dark ? '#c8c0b0' : '#3a3226');
+  root.style.setProperty('--read-size', state.readSize+'px');
+  document.querySelectorAll('.bg-dot').forEach(d=>{
+    d.classList.toggle('active', d.dataset.bg===state.readBg);
+  });
+}
+
+// 点击阅读页区域切换工具栏
+document.getElementById('read-wrap').addEventListener('click', ()=>{
+  document.getElementById('read-toolbar').classList.toggle('show');
+});
+document.getElementById('tb-font-dec').onclick = e=>{
+  e.stopPropagation();
+  state.readSize = Math.max(14, state.readSize-1);
+  localStorage.setItem('readSize', state.readSize);
+  applyReadStyle();
+  document.querySelector('.read-content').style.fontSize = state.readSize+'px';
+};
+document.getElementById('tb-font-inc').onclick = e=>{
+  e.stopPropagation();
+  state.readSize = Math.min(26, state.readSize+1);
+  localStorage.setItem('readSize', state.readSize);
+  applyReadStyle();
+  document.querySelector('.read-content').style.fontSize = state.readSize+'px';
+};
+document.querySelectorAll('.bg-dot').forEach(d=>{
+  d.onclick = e=>{
+    e.stopPropagation();
+    state.readBg = d.dataset.bg;
+    localStorage.setItem('readBg', state.readBg);
+    applyReadStyle();
+  };
+});
+document.getElementById('tb-chapters').onclick = e=>{
+  e.stopPropagation();
+  openDrawer();
+};
+
+/* ---- 章节抽屉 ---- */
+function openDrawer(){
+  document.getElementById('drawer-title').textContent = state.currentBook ? state.currentBook.title : '章节列表';
+  document.getElementById('drawer-list').innerHTML = state.currentChapters.map((c,i)=>`
+    <div class="ch-item ${c.id===parseInt(readCtx.chapterId)?'current':''}"
+         onclick="location.hash='#read?book=${readCtx.bookId}&chapter=${c.id}&from=read';closeDrawer()">
+      <span>第${i+1}章 ${esc(c.chapter_title)}</span>
+    </div>`).join('');
+  document.getElementById('drawer-mask').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+}
+function closeDrawer(){
+  document.getElementById('drawer-mask').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+}
+document.getElementById('drawer-mask').onclick = closeDrawer;
+
+/* ============================================================
+ * ⑨  书架
+ * ============================================================ */
+async function loadShelf(){
+  const body = document.getElementById('shelf-body');
+  if(!state.user){
+    body.innerHTML = `<div class="shelf-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h13v17H4z"/><path d="M8 4v17"/></svg>
+      <p>登录后查看你的书架</p>
+      <button class="btn-primary" style="margin-top:18px" onclick="openLogin()">立即登录</button>
+    </div>`;
+    return;
+  }
+  const {data} = await supabase.from('bookshelf')
+    .select('book_id, books(*)').eq('user_id',state.user.id);
+  const list = (data||[]).map(r=>r.books).filter(Boolean);
+  if(!list.length){
+    body.innerHTML = `<div class="shelf-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h13v17H4z"/><path d="M8 4v17"/></svg>
+      <p>书架还是空的，去书城看看吧</p>
+      <button class="btn-ghost" style="margin-top:18px" onclick="location.hash='#home'">去书城</button>
+    </div>`;
+    return;
+  }
+  state.shelf = new Set(list.map(b=>b.id));
+  body.innerHTML = `<div class="book-grid">${list.map((b,i)=>`
+    <div class="book-card" onclick="location.hash='#detail?id=${b.id}&from=shelf'">
+      ${coverHtml(b,i)}
+      <h3>${esc(b.title)}</h3>
+      <div class="author">${esc(b.author)}</div>
+    </div>`).join('')}</div>`;
+}
+
+/* ============================================================
+ * ⑩  启动
+ * ============================================================ */
+(async function init(){
+  renderTop();
+  const {data:{user}} = await supabase.auth.getUser();
+  state.user = user;
+  if(user){
+    const {data} = await supabase.from('bookshelf').select('book_id').eq('user_id',user.id);
+    state.shelf = new Set((data||[]).map(r=>r.book_id));
+  }
+  renderTop();
+  applyReadStyle();
+  if(!location.hash) location.hash = '#home';
+  else route();
+})();
+</script>
+</body>
+</html>
